@@ -4,7 +4,7 @@ services:
     env: docker
     dockerfilePath: ./docker/Dockerfile
     dockerContext: .
-    repo: https://github.com/automatisch/automatisch
+    repo: https://github.com/dexit/automatisch
     autoDeploy: false
     envVars:
       - key: HOST
@@ -48,7 +48,7 @@ services:
     env: docker
     dockerfilePath: ./docker/Dockerfile
     dockerContext: .
-    repo: https://github.com/automatisch/automatisch
+    repo: https://github.com/dexit/automatisch
     autoDeploy: false
     envVars:
       - key: WORKER
