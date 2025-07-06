@@ -6,7 +6,52 @@ exports[`Form model > jsonSchema should have correct validations 1`] = `
     "createdAt": {
       "type": "string",
     },
+    "description": {
+      "type": "string",
+    },
+    "displayName": {
+      "type": "string",
+    },
     "fields": {
+      "items": {
+        "properties": {
+          "key": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "options": {
+            "type": "array",
+          },
+          "readonly": {
+            "type": "boolean",
+          },
+          "required": {
+            "type": "boolean",
+          },
+          "type": {
+            "enum": [
+              "string",
+              "checkbox",
+              "dropdown",
+              "multiline",
+              "date",
+              "time",
+              "datetime",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "key",
+          "name",
+          "type",
+        ],
+        "type": "object",
+      },
       "type": "array",
     },
     "id": {
@@ -15,6 +60,12 @@ exports[`Form model > jsonSchema should have correct validations 1`] = `
     },
     "name": {
       "minLength": 1,
+      "type": "string",
+    },
+    "responseMessage": {
+      "type": "string",
+    },
+    "submitButtonText": {
       "type": "string",
     },
     "updatedAt": {

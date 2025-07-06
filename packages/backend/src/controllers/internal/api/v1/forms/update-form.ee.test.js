@@ -33,7 +33,13 @@ describe('PATCH /internal/api/v1/forms/:formId', () => {
       .set('Authorization', token)
       .send({
         name: 'Updated form',
-        fields: [{ key: 'updated value', type: 'string' }],
+        displayName: 'Updated display name',
+        submitButtonText: 'Updated submit button text',
+        responseMessage: 'Updated response message',
+        description: 'Updated description',
+        fields: [
+          { key: 'updated-value', name: 'updated value', type: 'string' },
+        ],
       })
       .expect(200);
 
@@ -42,7 +48,11 @@ describe('PATCH /internal/api/v1/forms/:formId', () => {
     const expectedPayload = await updateFormMock({
       ...refetchedForm,
       name: 'Updated form',
-      fields: [{ key: 'updated value', type: 'string' }],
+      displayName: 'Updated display name',
+      submitButtonText: 'Updated submit button text',
+      responseMessage: 'Updated response message',
+      description: 'Updated description',
+      fields: [{ key: 'updated-value', name: 'updated value', type: 'string' }],
     });
 
     expect(response.body).toStrictEqual(expectedPayload);

@@ -28,7 +28,57 @@ describe('POST /internal/api/v1/forms', () => {
     const response = await request(app)
       .post('/internal/api/v1/forms')
       .set('Authorization', token)
-      .send({ name: 'Test Form' })
+      .send({
+        name: 'Test Form',
+        displayName: 'Test Display Name',
+        description: 'Test Description',
+        responseMessage: 'Test Response Message',
+        submitButtonText: 'Test Submit Button Text',
+        fields: [
+          {
+            name: 'Email',
+            type: 'string',
+            key: 'email',
+            required: true,
+            readonly: false,
+          },
+          {
+            name: 'Comments',
+            type: 'multiline',
+            key: 'comments',
+            required: false,
+            readonly: false,
+          },
+          {
+            name: 'Subscribe',
+            type: 'checkbox',
+            key: 'subscribe',
+            required: false,
+            readonly: true,
+          },
+          {
+            name: 'Birth Date',
+            type: 'date',
+            key: 'birth_date',
+            required: true,
+            readonly: false,
+          },
+          {
+            name: 'Appointment Time',
+            type: 'time',
+            key: 'appointment_time',
+            required: false,
+            readonly: false,
+          },
+          {
+            name: 'Event Date & Time',
+            type: 'datetime',
+            key: 'event_datetime',
+            required: true,
+            readonly: false,
+          },
+        ],
+      })
       .expect(201);
 
     const refetchedForm = await currentUser

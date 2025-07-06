@@ -1,18 +1,13 @@
-import LoadingButton from '@mui/lab/LoadingButton';
 import CircularProgress from '@mui/material/CircularProgress';
-import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import * as React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import Container from 'components/Container';
-import InputCreator from 'components/InputCreator';
-
 import Form from 'components/Form';
 import PageTitle from 'components/PageTitle';
-import TextField from 'components/TextField';
+import FormEditor from 'components/FormEditor/index.ee';
 import * as URLS from 'config/urls';
-import useCurrentUserAbility from 'hooks/useCurrentUserAbility';
 import useFormatMessage from 'hooks/useFormatMessage';
 import useForm from 'hooks/useForm.ee';
 import useUpdateForm from 'hooks/useUpdateForm.ee';
@@ -24,9 +19,6 @@ export default function EditForm() {
   const { formId } = useParams();
 
   const { data, isLoading: isFormLoading } = useForm(formId);
-  const currentUserAbility = useCurrentUserAbility();
-  const canManageFlow = currentUserAbility.can('manage', 'Flow');
-
   const { mutate, isLoading: isUpdateFormLoading } = useUpdateForm(formId);
   const defaultValues = data?.data;
 
@@ -39,34 +31,6 @@ export default function EditForm() {
     mutate(formData);
 
     navigate(URLS.FORMS);
-  };
-
-  const dynamicFieldsSchema = {
-    label: 'Fields',
-    key: 'fields',
-    type: 'dynamic',
-    required: false,
-    description: 'Add or remove fields as needed',
-    value: [{}],
-    fields: [
-      {
-        label: 'Field name',
-        key: 'name',
-        type: 'string',
-        required: true,
-        description: 'Displayed name to the user',
-        variables: false,
-      },
-      {
-        label: 'Type',
-        key: 'type',
-        type: 'dropdown',
-        required: true,
-        description: 'Field type',
-        variables: false,
-        options: [{ label: 'String', value: 'string' }],
-      },
-    ],
   };
 
   return (
@@ -97,29 +61,14 @@ export default function EditForm() {
             data-test="edit-form-form"
             onSubmit={handleFormUpdate}
             defaultValues={defaultValues}
-            render={({ formState: { isDirty, isValid } }) => (
-              <Stack direction="column" gap={2} sx={{ position: 'relative' }}>
-                <TextField
-                  required={true}
-                  name="name"
-                  label={formatMessage('editFormForm.name')}
-                  fullWidth
-                />
-
-                <InputCreator key="fields" schema={dynamicFieldsSchema} />
-
-                <LoadingButton
-                  data-test="submit-edit-form-form"
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  sx={{ boxShadow: 2 }}
-                  loading={isUpdateFormLoading}
-                  disabled={!isValid || !isDirty || !canManageFlow}
-                >
-                  {formatMessage('editFormForm.buttonSubmit')}
-                </LoadingButton>
-              </Stack>
+            render={({ formState: { isDirty, isValid }, control }) => (
+              <FormEditor
+                control={control}
+                isDirty={isDirty}
+                isValid={isValid}
+                isLoading={isUpdateFormLoading}
+                translationPrefix="editFormForm"
+              />
             )}
           />
         </Grid>

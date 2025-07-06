@@ -12,14 +12,19 @@ describe('GET /internal/api/v1/flows/:flowId/form', () => {
     const form = await createForm({
       fields: [
         {
+          key: 'name',
           name: 'name',
           type: 'string',
         },
         {
+          key: 'email',
           name: 'email',
           type: 'string',
         },
       ],
+      description: 'Example description',
+      responseMessage: 'Example response message',
+      submitButtonText: 'Submit',
     });
 
     const flow = await createFlow({
