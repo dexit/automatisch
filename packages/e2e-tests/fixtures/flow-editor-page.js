@@ -58,14 +58,16 @@ export class FlowEditorPage extends AuthenticatedPage {
       .click();
     await this.continueButton.click();
 
-    const webhookUrl = this.page.locator('input[name="webhookUrl"]');
+    const webhookUrl = await this.page
+      .locator('input[name="webhookUrl"]')
+      .inputValue();
     if (workSynchronously) {
-      await expect(webhookUrl).toHaveValue(/sync/);
+      expect(webhookUrl).toContain('sync');
     } else {
-      await expect(webhookUrl).not.toHaveValue(/sync/);
+      expect(webhookUrl).not.toContain('sync');
     }
 
-    const triggerResponse = await axios.get(await webhookUrl.inputValue());
+    const triggerResponse = await axios.get(webhookUrl);
     await expect(triggerResponse.status).toBe(204);
 
     await expect(this.testOutput).not.toBeVisible();
@@ -74,7 +76,7 @@ export class FlowEditorPage extends AuthenticatedPage {
     await expect(this.hasNoOutput).not.toBeVisible();
     await this.continueButton.click();
 
-    return await webhookUrl.inputValue();
+    return webhookUrl;
   }
 
   async chooseAppAndEvent(appName, eventName) {
@@ -99,5 +101,22 @@ export class FlowEditorPage extends AuthenticatedPage {
     await this.continueButton.click();
     await expect(this.testOutput).toBeVisible();
     await this.continueButton.click();
+  }
+
+  async expectWebhookWorkSynchronouslyParameterToHaveValue(value) {
+    await expect(
+      this.page
+        .getByTestId('parameters.workSynchronously-autocomplete')
+        .first()
+        .getByRole('combobox')
+    ).toHaveValue(value);
+  }
+
+  async expectQueryStatementToHaveText(desiredText) {
+    await expect(
+      this.page
+        .getByTestId('parameters.queryStatement-power-input')
+        .getByRole('textbox')
+    ).toHaveText(desiredText);
   }
 }

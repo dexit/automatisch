@@ -12,13 +12,20 @@ import Telemetry from '@/helpers/telemetry/index.js';
 import exportFlow from '@/helpers/export-flow.js';
 import importFlow from '@/helpers/import-flow.js';
 import flowQueue from '@/queues/flow.js';
+import { hasValidLicense } from '@/helpers/license.ee.js';
 import {
   REMOVE_AFTER_30_DAYS_OR_150_JOBS,
   REMOVE_AFTER_7_DAYS_OR_50_JOBS,
 } from '@/helpers/remove-job-configuration.js';
 
 const JOB_NAME = 'flow';
+const EVERY_1_MINUTE_CRON = '* * * * *';
+const EVERY_2_MINUTES_CRON = '*/2 * * * *';
+const EVERY_5_MINUTES_CRON = '*/5 * * * *';
+const EVERY_10_MINUTES_CRON = '*/10 * * * *';
 const EVERY_15_MINUTES_CRON = '*/15 * * * *';
+const EVERY_30_MINUTES_CRON = '*/30 * * * *';
+const EVERY_60_MINUTES_CRON = '0 * * * *';
 
 class Flow extends Base {
   static tableName = 'flows';
@@ -34,6 +41,11 @@ class Flow extends Base {
       folderId: { type: ['string', 'null'], format: 'uuid' },
       remoteWebhookId: { type: 'string' },
       active: { type: 'boolean' },
+      executionInterval: {
+        type: 'integer',
+        enum: [1, 2, 5, 10, 15, 30, 60],
+        default: 15,
+      },
       publishedAt: { type: 'string' },
       deletedAt: { type: 'string' },
       createdAt: { type: 'string' },
@@ -184,6 +196,7 @@ class Flow extends Base {
     const computedForm = {
       ...form,
       webhookUrl: await triggerStep.getWebhookUrl(),
+      asyncRedirectUrl: triggerStep.parameters.asyncRedirectUrl,
     };
 
     return computedForm;
@@ -389,6 +402,33 @@ class Flow extends Base {
     return this.$query().withGraphFetched('folder');
   }
 
+  async getExecutionIntervalAsCron() {
+    const interval = this.executionInterval || 15;
+
+    if (!(await hasValidLicense())) {
+      return EVERY_15_MINUTES_CRON;
+    }
+
+    switch (interval) {
+      case 1:
+        return EVERY_1_MINUTE_CRON;
+      case 2:
+        return EVERY_2_MINUTES_CRON;
+      case 5:
+        return EVERY_5_MINUTES_CRON;
+      case 10:
+        return EVERY_10_MINUTES_CRON;
+      case 15:
+        return EVERY_15_MINUTES_CRON;
+      case 30:
+        return EVERY_30_MINUTES_CRON;
+      case 60:
+        return EVERY_60_MINUTES_CRON;
+      default:
+        return EVERY_15_MINUTES_CRON;
+    }
+  }
+
   async updateStatus(newActiveValue) {
     if (this.active === newActiveValue) {
       return this;
@@ -401,9 +441,9 @@ class Flow extends Base {
     }
 
     const trigger = await triggerStep.getTriggerCommand();
-    const interval = trigger.getInterval?.(triggerStep.parameters);
+    const triggerInterval = trigger.getInterval?.(triggerStep.parameters);
     const repeatOptions = {
-      pattern: interval || EVERY_15_MINUTES_CRON,
+      pattern: triggerInterval || (await this.getExecutionIntervalAsCron()),
     };
 
     if (trigger.type === 'webhook') {
@@ -515,6 +555,16 @@ class Flow extends Base {
       .orderBy('updated_at', 'desc');
   }
 
+  async assignExecutionInterval() {
+    if (this.executionInterval && this.executionInterval !== 15) {
+      const validLicense = await hasValidLicense();
+
+      if (!validLicense) {
+        this.executionInterval = 15;
+      }
+    }
+  }
+
   async $beforeUpdate(opt, queryContext) {
     await super.$beforeUpdate(opt, queryContext);
 
@@ -523,6 +573,14 @@ class Flow extends Base {
 
       await opt.old.throwIfHavingLessThanTwoSteps();
     }
+
+    await this.assignExecutionInterval();
+  }
+
+  async $beforeInsert(queryContext) {
+    await super.$beforeInsert(queryContext);
+
+    await this.assignExecutionInterval();
   }
 
   async $afterInsert(queryContext) {

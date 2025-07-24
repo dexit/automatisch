@@ -26,6 +26,28 @@ export default defineTrigger({
         ],
       },
     },
+    {
+      label: 'Wait until flow is done',
+      key: 'workSynchronously',
+      type: 'dropdown',
+      required: true,
+      options: [
+        { label: 'Yes', value: true },
+        { label: 'No', value: false },
+      ],
+    },
+    {
+      label: 'Async redirect URL',
+      key: 'asyncRedirectUrl',
+      type: 'string',
+      required: false,
+      description:
+        'URL to redirect users to immediately after form submission when not waiting for flow completion. Leave empty to show default success message.',
+      variables: true,
+      visibleIf: {
+        workSynchronously: false,
+      },
+    },
   ],
 
   async run($) {
