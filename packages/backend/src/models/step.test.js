@@ -7,7 +7,7 @@ import Flow from '@/models/flow.js';
 import Connection from '@/models/connection.js';
 import ExecutionStep from '@/models/execution-step.js';
 import Telemetry from '@/helpers/telemetry/index.js';
-import * as testRunModule from '@/services/test-run.js';
+import Engine from '@/engine/index.js';
 import { createFlow } from '@/factories/flow.js';
 import { createUser } from '@/factories/user.js';
 import { createRole } from '@/factories/role.js';
@@ -52,6 +52,22 @@ describe('Step model', () => {
           join: {
             from: 'steps.connection_id',
             to: 'connections.id',
+          },
+        },
+        parentStep: {
+          relation: Base.BelongsToOneRelation,
+          modelClass: Step,
+          join: {
+            from: 'steps.parent_step_id',
+            to: 'steps.id',
+          },
+        },
+        childrenSteps: {
+          relation: Base.HasManyRelation,
+          modelClass: Step,
+          join: {
+            from: 'steps.id',
+            to: 'steps.parent_step_id',
           },
         },
         lastExecutionStep: {
@@ -137,14 +153,14 @@ describe('Step model', () => {
     });
   });
 
-  it('isTrigger should return true when step type is trigger', () => {
+  it('isTrigger should return true when structural type is trigger', () => {
     const step = new Step();
     step.type = 'trigger';
 
     expect(step.isTrigger).toBe(true);
   });
 
-  it('isAction should return true when step type is action', () => {
+  it('isAction should return true when structural type is action', () => {
     const step = new Step();
     step.type = 'action';
 
@@ -152,7 +168,7 @@ describe('Step model', () => {
   });
 
   describe('computeWebhookPath', () => {
-    it('should return null if step type is action', async () => {
+    it('should return null if structural type is action', async () => {
       const step = new Step();
       step.type = 'action';
 
@@ -209,7 +225,7 @@ describe('Step model', () => {
   });
 
   describe('getWebhookUrl', () => {
-    it('should return absolute webhook URL when step type is trigger', async () => {
+    it('should return absolute webhook URL when structural type is trigger', async () => {
       const step = new Step();
       step.type = 'trigger';
 
@@ -223,7 +239,7 @@ describe('Step model', () => {
       );
     });
 
-    it('should return undefined when step type is action', async () => {
+    it('should return undefined when structural type is action', async () => {
       const step = new Step();
       step.type = 'action';
 
@@ -254,11 +270,15 @@ describe('Step model', () => {
   it('testAndContinue should execute the flow and mark the step as completed', async () => {
     const step = await createStep({ status: 'incomplete' });
 
-    const testRunSpy = vi.spyOn(testRunModule, 'default').mockResolvedValue();
+    const engineSpy = vi.spyOn(Engine, 'run').mockResolvedValue();
 
     const updatedStep = await step.testAndContinue();
 
-    expect(testRunSpy).toHaveBeenCalledWith({ stepId: step.id });
+    expect(engineSpy).toHaveBeenCalledWith({
+      untilStepId: step.id,
+      testRun: true,
+    });
+
     expect(updatedStep.status).toBe('completed');
   });
 
@@ -556,6 +576,158 @@ describe('Step model', () => {
       await expect(() => step.updateFor(user, stepData)).rejects.toThrowError(
         'DeepL does not have an action with the "not-existing-key" key!'
       );
+    });
+  });
+
+  describe('validateParentStep', () => {
+    it('should return true when there is no parent step', async () => {
+      const step = new Step();
+      step.parentStepId = null;
+
+      const result = await step.validateParentStep();
+      expect(result).toBe(true);
+    });
+
+    it('should throw an error if parent step is not a branch or paths', async () => {
+      const parentStep = await createStep({ structuralType: 'single' });
+      const step = new Step();
+      step.parentStepId = parentStep.id;
+
+      await expect(() => step.validateParentStep()).rejects.toThrowError(
+        'Parent step must have structuralType of "branch" or "paths" to have children'
+      );
+    });
+
+    it('should not throw an error if parent step is a paths', async () => {
+      const parentStep = await createStep({ structuralType: 'paths' });
+      const step = new Step();
+      step.parentStepId = parentStep.id;
+
+      await expect(step.validateParentStep()).resolves.not.toThrow();
+    });
+
+    it('should not throw an error if parent step is a branch', async () => {
+      const parentStep = await createStep({
+        structuralType: 'branch',
+        branchConditions: [{ condition: 'true' }],
+      });
+
+      const step = new Step();
+      step.parentStepId = parentStep.id;
+
+      await expect(step.validateParentStep()).resolves.not.toThrow();
+    });
+  });
+
+  describe('validateBranchConditions', () => {
+    it('should return true when structural type is single', async () => {
+      const step = new Step();
+      step.structuralType = 'single';
+
+      await expect(step.validateBranchConditions()).resolves.not.toThrow();
+    });
+
+    it('should return true when structural type is paths', async () => {
+      const step = new Step();
+      step.structuralType = 'paths';
+
+      await expect(step.validateBranchConditions()).resolves.not.toThrow();
+    });
+
+    it('should throw an error when structural type is branch and branchConditions is not set', async () => {
+      const step = new Step();
+      step.structuralType = 'branch';
+
+      await expect(step.validateBranchConditions()).rejects.toThrowError(
+        'Branch conditions are required and must contain at least one condition!'
+      );
+    });
+
+    it('should throw an error when structural type is branch and branchConditions is an empty array', async () => {
+      const step = new Step();
+      step.structuralType = 'branch';
+      step.branchConditions = [];
+
+      await expect(step.validateBranchConditions()).rejects.toThrowError(
+        'Branch conditions are required and must contain at least one condition!'
+      );
+    });
+
+    it('should not throw an error when structural type is branch and branchConditions is set with at least one condition', async () => {
+      const step = new Step();
+      step.structuralType = 'branch';
+      step.branchConditions = [{ condition: 'true' }];
+
+      await expect(step.validateBranchConditions()).resolves.not.toThrow();
+    });
+  });
+
+  describe('$beforeInsert', () => {
+    it('should call super.$beforeInsert', async () => {
+      const superBeforeInsertSpy = vi.spyOn(Base.prototype, '$beforeInsert');
+
+      await createStep();
+
+      expect(superBeforeInsertSpy).toHaveBeenCalled();
+    });
+
+    it('should call validateParentStep', async () => {
+      const validateParentStepSpy = vi.spyOn(
+        Step.prototype,
+        'validateParentStep'
+      );
+
+      await createStep();
+
+      expect(validateParentStepSpy).toHaveBeenCalled();
+    });
+
+    it('should call validateBranchConditions', async () => {
+      const validateBranchConditionsSpy = vi.spyOn(
+        Step.prototype,
+        'validateBranchConditions'
+      );
+
+      await createStep();
+
+      expect(validateBranchConditionsSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('$beforeUpdate', () => {
+    it('should call super.$beforeUpdate', async () => {
+      const superBeforeUpdateSpy = vi.spyOn(Base.prototype, '$beforeUpdate');
+
+      const step = await createStep();
+
+      await step.$query().patch({ position: 2 });
+
+      expect(superBeforeUpdateSpy).toHaveBeenCalled();
+    });
+
+    it('should call validateParentStep', async () => {
+      const validateParentStepSpy = vi.spyOn(
+        Step.prototype,
+        'validateParentStep'
+      );
+
+      const step = await createStep();
+
+      await step.$query().patch({ position: 2 });
+
+      expect(validateParentStepSpy).toHaveBeenCalled();
+    });
+
+    it('should call validateBranchConditions', async () => {
+      const validateBranchConditionsSpy = vi.spyOn(
+        Step.prototype,
+        'validateBranchConditions'
+      );
+
+      const step = await createStep();
+      await step.$query().patch({ position: 2 });
+
+      expect(validateBranchConditionsSpy).toHaveBeenCalled();
     });
   });
 

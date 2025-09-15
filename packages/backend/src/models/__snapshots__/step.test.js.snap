@@ -11,6 +11,15 @@ exports[`Step model > jsonSchema should have correct validations 1`] = `
         "null",
       ],
     },
+    "branchConditions": {
+      "items": {
+        "type": "object",
+      },
+      "type": [
+        "array",
+        "null",
+      ],
+    },
     "connectionId": {
       "format": "uuid",
       "type": [
@@ -49,6 +58,13 @@ exports[`Step model > jsonSchema should have correct validations 1`] = `
     "parameters": {
       "type": "object",
     },
+    "parentStepId": {
+      "format": "uuid",
+      "type": [
+        "string",
+        "null",
+      ],
+    },
     "position": {
       "type": "integer",
     },
@@ -57,6 +73,15 @@ exports[`Step model > jsonSchema should have correct validations 1`] = `
       "enum": [
         "incomplete",
         "completed",
+      ],
+      "type": "string",
+    },
+    "structuralType": {
+      "default": "single",
+      "enum": [
+        "single",
+        "paths",
+        "branch",
       ],
       "type": "string",
     },
